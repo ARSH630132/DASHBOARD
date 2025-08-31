@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaBoard - Digital Drawing Canvas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --secondary: #a29bfe;
+            --dark: #1e2029;
+            --darker: #15161c;
+            --light: #f8f9fa;
+            --success: #00b894;
+            --danger: #d63031;
+            --warning: #fdcb6e;
+            --info: #0984e3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            color: var(--light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-weight: 700;
+            font-size: 1.8rem;
+        }
+
+        .logo i {
+            color: var(--primary);
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        .toolbar {
+            background: rgba(30, 32, 41, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            min-width: 280px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tool-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .tool-section h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--secondary);
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+        }
+
+        .tool-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            color: var(--light);
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .tool-btn.active {
+            border-color: var(--primary);
+            background: rgba(108, 92, 231, 0.2);
+        }
+
+        .tool-btn i {
+            font-size: 1.5rem;
+        }
+
+        .tool-btn span {
+            font-size: 0.9rem;
+        }
+
+        .color-picker {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .color-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.active {
+            transform: scale(1.2);
+            box-shadow: 0 0 0 3px white;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .size-preview {
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .size-circle {
+            background-color: var(--light);
+            border-radius: 50%;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(30, 32, 41, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .canvas-header {
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .canvas-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .page-navigation {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .page-navigation button {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: var(--light);
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .page-navigation button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .canvas-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: var(--light);
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #board {
+            background-color: white;
+            flex: 1;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        #text-input {
+            position: absolute;
+            background: transparent;
+            color: black;
+            border: 1px solid #000;
+            padding: 5px;
+            font-size: 16px;
+            outline: none;
+            display: none;
+            z-index: 100;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1rem;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        @media (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .toolbar {
+                min-width: auto;
+            }
+
+            .tool-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .tool-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .logo {
+                font-size: 1.4rem;
+            }
+
+            header {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <i class="fas fa-palette"></i>
+            <span>AlphaBoard</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="toolbar">
+            <div class="tool-section">
+                <h3>Tools</h3>
+                <div class="tool-grid">
+                    <div class="tool-btn active" id="pencilBtn" title="Pencil">
+                        <i class="fas fa-pencil-alt"></i>
+                        <span>Pencil</span>
+                    </div>
+                    <div class="tool-btn" id="eraserBtn" title="Eraser">
+                        <i class="fas fa-eraser"></i>
+                        <span>Eraser</span>
+                    </div>
+                    <div class="tool-btn" id="lineBtn" title="Line">
+                        <i class="fas fa-minus"></i>
+                        <span>Line</span>
+                    </div>
+                    <div class="tool-btn" id="rectangleBtn" title="Rectangle">
+                        <i class="far fa-square"></i>
+                        <span>Rect</span>
+                    </div>
+                    <div class="tool-btn" id="circleBtn" title="Circle">
+                        <i class="far fa-circle"></i>
+                        <span>Circle</span>
+                    </div>
+                    <div class="tool-btn" id="textBtn" title="Text">
+                        <i class="fas fa-font"></i>
+                        <span>Text</span>
+                    </div>
+                    <div class="tool-btn" id="moveBtn" title="Move">
+                        <i class="fas fa-arrows-alt"></i>
+                        <span>Move</span>
+                    </div>
+                    <div class="tool-btn" id="duplicateBtn" title="Duplicate">
+                        <i class="fas fa-clone"></i>
+                        <span>Duplicate</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Color</h3>
+                <div class="color-options">
+                    <div class="color-option active" style="background-color: #000000;" data-color="#000000"></div>
+                    <div class="color-option" style="background-color: #ff5e57;" data-color="#ff5e57"></div>
+                    <div class="color-option" style="background-color: #5e7fff;" data-color="#5e7fff"></div>
+                    <div class="color-option" style="background-color: #32d296;" data-color="#32d296"></div>
+                    <div class="color-option" style="background-color: #faa05a;" data-color="#faa05a"></div>
+                    <div class="color-option" style="background-color: #b45afa;" data-color="#b45afa"></div>
+                </div>
+                <div class="color-picker">
+                    <input type="color" id="colorPicker" value="#000000">
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Brush Size</h3>
+                <input type="range" id="sizePicker" min="1" max="50" value="5">
+                <div class="size-preview">
+                    <div class="size-circle" id="sizeCircle"></div>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Actions</h3>
+                <div class="tool-grid">
+                    <div class="tool-btn" id="undoBtn" title="Undo">
+                        <i class="fas fa-undo"></i>
+                        <span>Undo</span>
+                    </div>
+                    <div class="tool-btn" id="redoBtn" title="Redo">
+                        <i class="fas fa-redo"></i>
+                        <span>Redo</span>
+                    </div>
+                    <div class="tool-btn" id="clearBtn" title="Clear Canvas">
+                        <i class="fas fa-broom"></i>
+                        <span>Clear</span>
+                    </div>
+                    <div class="tool-btn" id="exportPdfBtn" title="Export as PDF">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>PDF</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas-header">
+                <div class="canvas-title">AlphaBoard Canvas</div>
+                <div class="page-navigation">
+                    <button id="prevPageBtn">Previous</button>
+                    <span id="pageIndicator">Page 1 of 1</span>
+                    <button id="nextPageBtn">Next</button>
+                    <button id="addPageBtn" class="action-btn">
+                        <i class="fas fa-plus"></i> New Page
+                    </button>
+                </div>
+            </div>
+            <canvas id="board"></canvas>
+            <input type="text" id="text-input" placeholder="Type here...">
+        </div>
+    </div>
+
+    <footer>
+        <p>AlphaBoard Created By Prince Yadav &copy; 2025 | Draw, Create, Inspire</p>
+    </footer>
+
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage">Operation completed successfully</span>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const textInput = document.getElementById('text-input');
+
+        // Set canvas size to fit container
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth - 4;
+            canvas.height = container.clientHeight - 60;
+            redrawCanvas();
+        }
+
+        // Initialize variables for multi-page
+        let tool = 'pencil';
+        let color = '#000000';
+        let size = 5;
+        let startX, startY;
+        let isDrawing = false;
+        let isDrawingShape = false;
+        let pages = [[]];
+        let currentPage = 0;
+        let undoStack = [];
+        let redoStack = [];
+
+        // New variables for moving shapes
+        let isMoving = false;
+        let selectedShape = null;
+        let offsetX, offsetY;
+        
+        // DOM Elements
+        const colorPicker = document.getElementById('colorPicker');
+        const sizePicker = document.getElementById('sizePicker');
+        const sizeCircle = document.getElementById('sizeCircle');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+        const pageIndicator = document.getElementById('pageIndicator');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const addPageBtn = document.getElementById('addPageBtn');
+
+        // Initialize canvas
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Use a function to set the initial state and call it on page load and new page creation.
+        function initializeCanvasState() {
+            resizeCanvas();
+            setInitialBackground();
+            updateSizePreview();
+            updatePageIndicator();
+            saveState(); // Save initial state
+        }
+
+        // Set initial canvas background
+        function setInitialBackground() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Update size preview
+        function updateSizePreview() {
+            sizeCircle.style.width = `${size}px`;
+            sizeCircle.style.height = `${size}px`;
+        }
+
+        // Update page indicator
+        function updatePageIndicator() {
+            pageIndicator.textContent = `Page ${currentPage + 1} of ${pages.length}`;
+            prevPageBtn.disabled = currentPage === 0;
+            nextPageBtn.disabled = currentPage === pages.length - 1;
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Redraw all shapes on the canvas
+        function redrawCanvas() {
+            setInitialBackground();
+            const shapes = pages[currentPage];
+            shapes.forEach(shape => {
+                if (shape.type === 'line' || shape.type === 'pencil' || shape.type === 'eraser') {
+                    ctx.beginPath();
+                    ctx.moveTo(shape.points[0].x, shape.points[0].y);
+                    shape.points.forEach(point => ctx.lineTo(point.x, point.y));
+                    ctx.strokeStyle = shape.color;
+                    ctx.lineWidth = shape.size;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                } else if (shape.type === 'rectangle') {
+                    ctx.strokeStyle = shape.color;
+                    ctx.lineWidth = shape.size;
+                    ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+                } else if (shape.type === 'circle') {
+                    ctx.beginPath();
+                    ctx.strokeStyle = shape.color;
+                    ctx.lineWidth = shape.size;
+                    ctx.arc(shape.x, shape.y, shape.radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                } else if (shape.type === 'text') {
+                    ctx.font = `${shape.size * 2}px Arial`;
+                    ctx.fillStyle = shape.color;
+                    ctx.fillText(shape.text, shape.x, shape.y);
+                }
+            });
+        }
+
+        // Tool buttons functionality
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Ignore non-tool buttons for active state change
+                if (this.id !== 'undoBtn' && this.id !== 'redoBtn' && this.id !== 'clearBtn' && this.id !== 'exportPdfBtn' && this.id !== 'saveBtn' && this.id !== 'screenshotBtn' && this.id !== 'duplicateBtn') {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            });
+        });
+
+        document.getElementById('pencilBtn').addEventListener('click', () => { tool = 'pencil'; canvas.style.cursor = 'crosshair'; hideTextInput(); });
+        document.getElementById('eraserBtn').addEventListener('click', () => { tool = 'eraser'; canvas.style.cursor = 'cell'; hideTextInput(); });
+        document.getElementById('lineBtn').addEventListener('click', () => { tool = 'line'; canvas.style.cursor = 'crosshair'; hideTextInput(); });
+        document.getElementById('rectangleBtn').addEventListener('click', () => { tool = 'rectangle'; canvas.style.cursor = 'crosshair'; hideTextInput(); });
+        document.getElementById('circleBtn').addEventListener('click', () => { tool = 'circle'; canvas.style.cursor = 'crosshair'; hideTextInput(); });
+        document.getElementById('textBtn').addEventListener('click', () => { tool = 'text'; canvas.style.cursor = 'text'; hideTextInput(); });
+        document.getElementById('moveBtn').addEventListener('click', () => { tool = 'move'; canvas.style.cursor = 'grab'; hideTextInput(); });
+        document.getElementById('duplicateBtn').addEventListener('click', () => { tool = 'duplicate'; canvas.style.cursor = 'copy'; hideTextInput(); });
+        
+        document.getElementById('undoBtn').addEventListener('click', undo);
+        document.getElementById('redoBtn').addEventListener('click', redo);
+        document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+        document.getElementById('exportPdfBtn').addEventListener('click', exportAllPagesToPdf);
+        
+        // Color options
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
+                this.classList.add('active');
+                color = this.getAttribute('data-color');
+                colorPicker.value = color;
+            });
+        });
+
+        colorPicker.addEventListener('input', (e) => {
+            color = e.target.value;
+            document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
+        });
+
+        sizePicker.addEventListener('input', (e) => {
+            size = parseInt(e.target.value);
+            updateSizePreview();
+        });
+        
+        // Drawing and interaction functions
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+            if (e.type.includes('touch')) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+            return { x, y };
+        }
+
+        function startDrawing(e) {
+            const { x, y } = getCoordinates(e);
+
+            if (tool === 'text') {
+                placeText(x, y);
+                return;
+            }
+            
+            if (tool === 'move') {
+                for (let i = pages[currentPage].length - 1; i >= 0; i--) {
+                    const shape = pages[currentPage][i];
+                    if (isPointInsideShape(x, y, shape)) {
+                        isMoving = true;
+                        selectedShape = shape;
+                        
+                        // Calculate offset for precise dragging
+                        if (shape.type === 'line' || shape.type === 'pencil' || shape.type === 'eraser') {
+                            offsetX = x - shape.points[0].x;
+                            offsetY = y - shape.points[0].y;
+                        } else {
+                            offsetX = x - shape.x;
+                            offsetY = y - shape.y;
+                        }
+
+                        canvas.style.cursor = 'grabbing';
+                        return;
+                    }
+                }
+                // If no shape is selected, do nothing
+                return;
+            }
+
+            if (tool === 'duplicate') {
+                for (let i = pages[currentPage].length - 1; i >= 0; i--) {
+                    const shape = pages[currentPage][i];
+                    if (isPointInsideShape(x, y, shape)) {
+                        duplicateShape(shape);
+                        return;
+                    }
+                }
+                return;
+            }
+            
+            if (tool === 'pencil' || tool === 'eraser') {
+                isDrawing = true;
+                pages[currentPage].push({
+                    type: tool,
+                    points: [{ x, y }],
+                    color: tool === 'eraser' ? 'white' : color,
+                    size: size
+                });
+            } else {
+                isDrawingShape = true;
+                startX = x;
+                startY = y;
+                pages[currentPage].push({
+                    type: tool,
+                    x: startX,
+                    y: startY,
+                    width: 0,
+                    height: 0,
+                    radius: 0,
+                    points: [{ x: startX, y: startY }],
+                    color: color,
+                    size: size,
+                    isTemp: true
+                });
+            }
+            redoStack = []; // Clear redo stack on new action
+            saveState();
+        }
+
+        function stopDrawing(e) {
+            if (isMoving) {
+                isMoving = false;
+                selectedShape = null;
+                canvas.style.cursor = 'grab';
+            }
+            if (!isDrawing && !isDrawingShape) return;
+            isDrawing = false;
+            isDrawingShape = false;
+            const tempShapeIndex = pages[currentPage].findIndex(shape => shape.isTemp);
+            if (tempShapeIndex !== -1) {
+                delete pages[currentPage][tempShapeIndex].isTemp;
+            }
+        }
+
+        function draw(e) {
+            if (!isDrawing && !isDrawingShape && !isMoving) return;
+            const { x, y } = getCoordinates(e);
+
+            if (isMoving && selectedShape) {
+                const newX = x - offsetX;
+                const newY = y - offsetY;
+
+                if (selectedShape.type === 'line' || selectedShape.type === 'pencil' || selectedShape.type === 'eraser') {
+                    const dx = x - (selectedShape.points[0].x + offsetX);
+                    const dy = y - (selectedShape.points[0].y + offsetY);
+                    selectedShape.points = selectedShape.points.map(point => ({
+                        x: point.x + dx,
+                        y: point.y + dy
+                    }));
+                    offsetX = x - selectedShape.points[0].x;
+                    offsetY = y - selectedShape.points[0].y;
+                } else {
+                    selectedShape.x = newX;
+                    selectedShape.y = newY;
+                }
+                redrawCanvas();
+                return;
+            }
+            
+            if (isDrawing) {
+                const currentPath = pages[currentPage][pages[currentPage].length - 1];
+                currentPath.points.push({ x, y });
+            } else if (isDrawingShape) {
+                const currentShape = pages[currentPage][pages[currentPage].length - 1];
+                if (tool === 'line') {
+                    currentShape.points = [{ x: startX, y: startY }, { x, y }];
+                } else if (tool === 'rectangle') {
+                    currentShape.width = x - startX;
+                    currentShape.height = y - startY;
+                } else if (tool === 'circle') {
+                    const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+                    currentShape.radius = radius;
+                }
+            }
+            redrawCanvas();
+        }
+        
+        // Text tool functions
+        function placeText(x, y) {
+            textInput.style.left = `${x}px`;
+            textInput.style.top = `${y}px`;
+            textInput.style.color = color;
+            textInput.style.fontSize = `${size * 2}px`;
+            textInput.style.display = 'block';
+            textInput.value = '';
+            textInput.focus();
+
+            textInput.onblur = () => {
+                const text = textInput.value;
+                if (text.trim()) {
+                    pages[currentPage].push({
+                        type: 'text',
+                        text: text,
+                        x: x,
+                        y: y,
+                        color: color,
+                        size: size
+                    });
+                    redrawCanvas();
+                    saveState();
+                }
+                hideTextInput();
+            };
+        }
+
+        function hideTextInput() {
+            textInput.style.display = 'none';
+        }
+
+        // Duplication and selection functions
+        function isPointInsideShape(x, y, shape) {
+            if (shape.type === 'rectangle') {
+                const minX = Math.min(shape.x, shape.x + shape.width);
+                const maxX = Math.max(shape.x, shape.x + shape.width);
+                const minY = Math.min(shape.y, shape.y + shape.height);
+                const maxY = Math.max(shape.y, shape.y + shape.height);
+                return x >= minX && x <= maxX && y >= minY && y <= maxY;
+            } else if (shape.type === 'circle') {
+                const distance = Math.sqrt(Math.pow(x - shape.x, 2) + Math.pow(y - shape.y, 2));
+                return distance <= shape.radius;
+            } else if (shape.type === 'text') {
+                const font = `${shape.size * 2}px Arial`;
+                ctx.font = font;
+                const metrics = ctx.measureText(shape.text);
+                const textWidth = metrics.width;
+                const textHeight = shape.size * 2;
+                return x >= shape.x && x <= shape.x + textWidth && y >= shape.y - textHeight && y <= shape.y;
+            } else if (shape.type === 'line' || shape.type === 'pencil' || shape.type === 'eraser') {
+                const tolerance = 15;
+                if (shape.points.length < 2) return false;
+                for (let i = 0; i < shape.points.length - 1; i++) {
+                    const p1 = shape.points[i];
+                    const p2 = shape.points[i+1];
+                    const distance = distToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+                    if (distance <= tolerance) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function distToSegment(px, py, x1, y1, x2, y2) {
+            const l2 = Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2);
+            if (l2 === 0) return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+            let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            const projX = x1 + t * (x2 - x1);
+            const projY = y1 + t * (y2 - y1);
+            return Math.sqrt(Math.pow(px - projX, 2) + Math.pow(py - projY, 2));
+        }
+
+        function duplicateShape(shape) {
+            const newShape = JSON.parse(JSON.stringify(shape));
+            const offset = 20;
+            
+            if (newShape.type === 'rectangle' || newShape.type === 'circle' || newShape.type === 'text') {
+                newShape.x += offset;
+                newShape.y += offset;
+            } else if (newShape.type === 'line' || newShape.type === 'pencil' || newShape.type === 'eraser') {
+                newShape.points = newShape.points.map(point => ({ x: point.x + offset, y: point.y + offset }));
+            }
+            
+            pages[currentPage].push(newShape);
+            redrawCanvas();
+            showToast('Shape copied');
+            saveState();
+        }
+
+        // Canvas operations
+        function saveState() {
+            localStorage.setItem('alphaboardState', JSON.stringify({ pages, currentPage }));
+        }
+
+        function loadState() {
+            const savedState = localStorage.getItem('alphaboardState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                pages = state.pages;
+                currentPage = state.currentPage;
+            } else {
+                pages = [[]];
+                currentPage = 0;
+            }
+            redrawCanvas();
+            updatePageIndicator();
+        }
+
+        function undo() {
+            if (pages[currentPage].length > 0) {
+                const lastShape = pages[currentPage].pop();
+                redoStack.push(lastShape);
+                redrawCanvas();
+                saveState();
+                showToast('Undo successful');
+            }
+        }
+
+        function redo() {
+            if (redoStack.length > 0) {
+                const lastUndoneShape = redoStack.pop();
+                pages[currentPage].push(lastUndoneShape);
+                redrawCanvas();
+                saveState();
+                showToast('Redo successful');
+            }
+        }
+
+        function clearCanvas() {
+            pages[currentPage] = [];
+            redrawCanvas();
+            saveState();
+            showToast('Canvas cleared');
+        }
+
+        function exportAllPagesToPdf() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const width = pdf.internal.pageSize.getWidth();
+            const height = pdf.internal.pageSize.getHeight();
+
+            const exportPage = (pageIndex) => {
+                const originalPage = currentPage;
+                currentPage = pageIndex;
+                redrawCanvas();
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                
+                const canvasRatio = canvas.width / canvas.height;
+                const pdfWidth = width;
+                const pdfHeight = pdfWidth / canvasRatio;
+
+                if (pageIndex > 0) {
+                    pdf.addPage();
+                }
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                
+                if (pageIndex < pages.length - 1) {
+                    exportPage(pageIndex + 1);
+                } else {
+                    pdf.save('AlphaBoard.pdf');
+                    currentPage = originalPage;
+                    redrawCanvas();
+                    showToast('Exported to PDF');
+                }
+            };
+            exportPage(0);
+        }
+
+        // Page Navigation
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 0) {
+                saveState();
+                currentPage--;
+                redrawCanvas();
+                updatePageIndicator();
+            }
+        });
+
+        nextPageBtn.addEventListener('click', () => {
+            if (currentPage < pages.length - 1) {
+                saveState();
+                currentPage++;
+                redrawCanvas();
+                updatePageIndicator();
+            }
+        });
+
+        addPageBtn.addEventListener('click', () => {
+            pages.push([]);
+            currentPage = pages.length - 1;
+            redrawCanvas();
+            updatePageIndicator();
+            saveState();
+            showToast('New page added');
+        });
+
+        // Event listeners for drawing
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchmove', draw);
+
+        // Initial setup
+        loadState();
+        initializeCanvasState();
+    </script>
+</body>
+</html>
